@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SARYU</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Light Mode Colors (Default) */
+        :root {
+            --header-bg: #075e54;
+            --chat-bg: #e5ddd5;
+            --surface: #ffffff;
+            --text-color: #000000;
+            --user-bubble: #dcf8c6;
+            --bot-bubble: #ffffff;
+            --input-bg: #f0f0f0;
+            --pill-bg: #eceff1;
+        }
+
+        /* Dark Mode Colors */
+        [data-theme="dark"] {
+            --header-bg: #1e2a30;
+            --chat-bg: #0b141a;
+            --surface: #202c33;
+            --text-color: #e9edef;
+            --user-bubble: #005c4b;
+            --bot-bubble: #202c33;
+            --input-bg: #2a3942;
+            --pill-bg: #3b4a54;
+        }
+
+        body, html {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            font-family: 'Roboto', sans-serif;
+            background: var(--chat-bg);
+            color: var(--text-color);
+            transition: background 0.3s ease;
+            overflow: hidden;
+        }
+
+        .bg-animation {
+            position: fixed; inset: 0; z-index: -1; opacity: 0.1; pointer-events: none;
+        }
+
+        .moving-flag {
+            position: absolute; font-size: 30px; animation: floatUp 15s linear infinite;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(110vh) rotate(0deg); }
+            100% { transform: translateY(-10vh) rotate(360deg); }
+        }
+
+        .container { display: flex; flex-direction: column; height: 100vh; }
+
+        header {
+            background: var(--header-bg); color: white; padding: 15px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 10;
+        }
+
+        .selection-bar {
+            background: var(--surface); padding: 10px; display: flex;
+            justify-content: space-evenly; align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .lang-pill {
+            padding: 8px 16px; background: var(--pill-bg); border-radius: 20px;
+            font-size: 14px; font-weight: bold; cursor: pointer;
+            color: var(--text-color); border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        #chat-area {
+            flex: 1; overflow-y: auto; padding: 20px;
+            display: flex; flex-direction: column; gap: 15px;
+            /* WhatsApp style wallpaper overlay */
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-blend-mode: overlay;
+        }
+
+        .bubble {
+            max-width: 85%; padding: 12px 15px; border-radius: 12px;
+            font-size: 16px; line-height: 1.4; position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            animation: popIn 0.3s ease;
+            color: var(--text-color);
+        }
+
+        @keyframes popIn { from { transform: scale(0.95); opacity: 0; } }
+
+        .sent { align-self: flex-end; background: var(--user-bubble); border-top-right-radius: 0; }
+
+        .received { align-self: flex-start; background: var(--bot-bubble); border-top-left-radius: 0; }
+
+        .timestamp { font-size: 10px; opacity: 0.6; display: block; text-align: right; margin-top: 5px; }
+
+        .input-zone {
+            background: var(--input-bg); padding: 10px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .input-pill {
+            flex: 1; background: var(--surface); border-radius: 25px;
+            padding: 5px 18px; display: flex; align-items: center;
+        }
+
+        input {
+            flex: 1; border: none; padding: 10px 0; background: transparent;
+            outline: none; font-size: 16px; color: var(--text-color);
+        }
+
+        .send-btn {
+            background: #128c7e; color: white; border: none;
+            width: 50px; height: 50px; border-radius: 50%; cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* SARYU BANNER AD CSS */
+        .ad-container {
+            width: 100%;
+            min-height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: var(--input-bg);
+        }
+
+        .ad-container iframe {
+            max-width: 100%;
+            border: none;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: none; justify-content: center; align-items: center; z-index: 100;
+        }
+
+        .modal-content {
+            background: var(--surface); width: 85%; border-radius: 15px;
+            padding: 20px; max-height: 60vh; overflow-y: auto; color: var(--text-color);
+        }
+
+        .lang-item {
+            padding: 15px; border-bottom: 1px solid rgba(0,0,0,0.1);
+            display: flex; align-items: center; gap: 15px; cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="bg-animation" id="flag-container"></div>
+
+    <div class="container">
+
+        <header>
+            <div style="display:flex; align-items:center; gap:10px">
+                <i class="fas fa-crown"></i>
+                <b style="font-size: 18px">Saryu all language translator</b>
+            </div>
+            <i class="fas fa-circle-half-stroke" onclick="toggleDarkMode()" style="cursor:pointer; font-size: 20px;"></i>
+        </header>
+
+        <div class="selection-bar">
+            <div class="lang-pill" onclick="openPicker('P1')">
+                <span id="p1-flag">🇺🇸</span> <span id="p1-name">English</span>
+            </div>
+            <i class="fas fa-arrows-rotate" style="color:#128c7e"></i>
+            <div class="lang-pill" onclick="openPicker('P2')">
+                <span id="p2-flag">🇮🇳</span> <span id="p2-name">Hindi</span>
+            </div>
+        </div>
+
+        <main id="chat-area">
+            <div class="bubble received">
+                👋 Hello Users! Welcome to SARYU 🌍 I am Mr. Prince. 💙 SARYU represents a bridge connecting languages and people. 🌐 Let's break language barriers and connect the world! 🚀
+                <span class="timestamp">System</span>
+            </div>
+        </main>
+
+        <!-- SARYU BANNER AD -->
+        <div class="ad-container" id="saryu-ad">
+            <script>
+                atOptions = {
+                    'key' : '296de95140fffe0f74ad9f238ab5cad0',
+                    'format' : 'iframe',
+                    'height' : 50,
+                    'width' : 320,
+                    'params' : {}
+                };
+            </script>
+            <script src="https://www.highrevenueformat.com/296de95140fffe0f74ad9f238ab5cad0/invoke.js"></script>
+        </div>
+
+        <div class="input-zone">
+            <div class="input-pill">
+                <input type="text" id="user-input" placeholder="Type message..." autocomplete="off">
+            </div>
+            <button class="send-btn" onclick="startTranslation()">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+
+    </div>
+
+    <div id="modal-box" class="modal" onclick="this.style.display='none'">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 style="margin-top:0">Select Language</h3>
+            <div id="lang-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const langConfigs = {
+    'en': {n: 'English', f: '🇺🇸', script: /^[A-Za-z0-9\s.,!?-]+$/},
+    'hi': {n: 'Hindi', f: '🇮🇳', script: /[\u0900-\u097F]/},
+    'ur': {n: 'Urdu', f: '🇵🇰', script: /[\u0600-\u06FF]/},
+    'ja': {n: 'Japanese', f: '🇯🇵', script: /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/},
+    'zh': {n: 'Chinese', f: '🇨🇳', script: /[\u4e00-\u9fff]/},
+    'ru': {n: 'Russian', f: '🇷🇺', script: /[\u0400-\u04FF]/},
+    'ar': {n: 'Arabic', f: '🇸🇦', script: /[\u0600-\u06FF]/},
+    'fr': {n: 'French', f: '🇫🇷', script: /^[A-Za-zÀ-ÿ0-9\s.,!?-]+$/},
+    'es': {n: 'Spanish', f: '🇪🇸', script: /^[A-Za-zÀ-ÿ0-9\s.,!?'-]+$/},
+    'bn': {n: 'Bengali', f: '🇧🇩', script: /[\u0980-\u09FF]/},
+    'pt': {n: 'Portuguese', f: '🇵🇹', script: /^[A-Za-zÀ-ÿ0-9\s.,!?'-]+$/},
+    'id': {n: 'Indonesian', f: '🇮🇩', script: /^[A-Za-z0-9\s.,!?'-]+$/},
+    'de': {n: 'German', f: '🇩🇪', script: /^[A-Za-zÀ-ÿ0-9\s.,!?'-]+$/},
+    'pa': {n: 'Punjabi', f: '🇮🇳', script: /[\u0A00-\u0A7F]/},
+    'mr': {n: 'Marathi', f: '🇮🇳', script: /[\u0900-\u097F]/},
+    'te': {n: 'Telugu', f: '🇮🇳', script: /[\u0C00-\u0C7F]/},
+    'tr': {n: 'Turkish', f: '🇹🇷', script: /^[A-Za-zÀ-ÿ0-9\s.,!?'-]+$/},
+    'ta': {n: 'Tamil', f: '🇮🇳', script: /[\u0B80-\u0BFF]/},
+    'vi': {n: 'Vietnamese', f: '🇻🇳', script: /^[A-Za-zÀ-ỹ0-9\s.,!?'-]+$/},
+    'ko': {n: 'Korean', f: '🇰🇷', script: /[\uAC00-\uD7AF\u1100-\u11FF]/},
+    'it': {n: 'Italian', f: '🇮🇹', script: /^[A-Za-zÀ-ÿ0-9\s.,!?'-]+$/},
+    'th': {n: 'Thai', f: '🇹🇭', script: /[\u0E00-\u0E7F]/},
+    'fa': {n: 'Persian', f: '🇮🇷', script: /[\u0600-\u06FF]/},
+    'ms': {n: 'Malay', f: '🇲🇾', script: /^[A-Za-z0-9\s.,!?'-]+$/},
+    'sw': {n: 'Swahili', f: '🇰🇪', script: /^[A-Za-z0-9\s.,!?'-]+$/},
+    'nl': {n: 'Dutch', f: '🇳🇱', script: /^[A-Za-zÀ-ÿ0-9\s.,!?'-]+$/},
+    'pl': {n: 'Polish', f: '🇵🇱', script: /^[A-Za-zÀ-ÿ0-9\s.,!?'-]+$/},
+    'uk': {n: 'Ukrainian', f: '🇺🇦', script: /[\u0400-\u04FF]/},
+    'gu': {n: 'Gujarati', f: '🇮🇳', script: /[\u0A80-\u0AFF]/}
+};
+
+        let P1 = 'en', P2 = 'hi', activePicker = 'P1';
+
+        function addFlags() {
+            const f = document.createElement('div');
+            f.className = 'moving-flag';
+            f.innerText = ['🇯🇵','🇨🇳','🇷🇺','🇮🇳','🇺🇸'][Math.floor(Math.random()*5)];
+            f.style.left = Math.random() * 100 + 'vw';
+            f.style.animationDuration = (Math.random() * 5 + 10) + 's';
+            document.getElementById('flag-container').appendChild(f);
+            setTimeout(() => f.remove(), 15000);
+        }
+
+        setInterval(addFlags, 4000);
+
+        function openPicker(target) {
+            activePicker = target;
+            const list = document.getElementById('lang-list');
+            list.innerHTML = '';
+            Object.entries(langConfigs).forEach(([code, data]) => {
+                const item = document.createElement('div');
+                item.className = 'lang-item';
+                item.innerHTML = `<span>${data.f}</span> <span>${data.n}</span>`;
+                item.onclick = () => {
+                    if(activePicker === 'P1') P1 = code; else P2 = code;
+                    updateHeader();
+                    document.getElementById('modal-box').style.display = 'none';
+                };
+                list.appendChild(item);
+            });
+            document.getElementById('modal-box').style.display = 'flex';
+        }
+
+        function updateHeader() {
+            document.getElementById('p1-flag').innerText = langConfigs[P1].f;
+            document.getElementById('p1-name').innerText = langConfigs[P1].n;
+            document.getElementById('p2-flag').innerText = langConfigs[P2].f;
+            document.getElementById('p2-name').innerText = langConfigs[P2].n;
+        }
+
+        async function startTranslation() {
+            const input = document.getElementById('user-input');
+            const text = input.value.trim();
+            if(!text) return;
+
+            let from, to;
+
+            if (langConfigs[P2].script.test(text)) {
+                from = P2; to = P1;
+            } else {
+                from = P1; to = P2;
+            }
+
+            addBubble(text, 'sent');
+            input.value = '';
+            const loader = addBubble("Processing...", 'received');
+
+            try {
+                const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`);
+                const json = await res.json();
+
+                loader.remove();
+                if(json && json[0] && json[0][0]) {
+                    addBubble(json[0][0][0], 'received');
+                } else {
+                    addBubble("Error: Server slow.", 'received');
+                }
+
+            } catch (err) {
+                loader.innerText = "No Connection!";
+            }
+        }
+
+        function addBubble(msg, type) {
+            const chat = document.getElementById('chat-area');
+            const div = document.createElement('div');
+            div.className = `bubble ${type}`;
+            div.innerHTML = `${msg} <span class="timestamp">${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+            return div;
+        }
+
+        function toggleDarkMode() {
+            const body = document.body;
+            if (body.hasAttribute('data-theme')) {
+                body.removeAttribute('data-theme');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+            }
+        }
+
+        document.getElementById('user-input').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') startTranslation();
+        });
+    </script>
+
+</body>
+</html>
